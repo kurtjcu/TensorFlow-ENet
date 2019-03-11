@@ -488,6 +488,12 @@ def ENet(inputs,
 
         return logits, probabilities
 
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#
+#   TODO: Look at changing the L2 to normal weight decay as per "DECOUPLED WEIGHT DECAY REGULARIZATION"
+#   TODO: Look at scheduled learning rate multiplier
+#
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 def ENet_arg_scope(weight_decay=2e-4,
                    batch_norm_decay=0.1,

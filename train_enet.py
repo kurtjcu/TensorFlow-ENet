@@ -31,6 +31,7 @@ flags.DEFINE_float('weight_decay', 2e-4, "The weight decay for ENet convolution 
 flags.DEFINE_float('learning_rate_decay_factor', 1e-1, 'The learning rate decay factor.')
 flags.DEFINE_float('initial_learning_rate', 5e-4, 'The initial learning rate for your training.')
 flags.DEFINE_string('weighting', "MFB", 'Choice of Median Frequency Balancing or the custom ENet class weights.')
+flags.DEFINE_string('optimiser')
 
 #Architectural changes
 flags.DEFINE_integer('num_initial_blocks', 1, 'The number of initial blocks to use in ENet.')
