@@ -137,18 +137,27 @@ def run():
         #===================TRAINING BRANCH=======================
         #Load the files into one input queue
         images = tf.convert_to_tensor(image_files)
+        print'1'
         annotations = tf.convert_to_tensor(annotation_files)
+        print'2'
         input_queue = tf.train.slice_input_producer([images, annotations]) #Slice_input producer shuffles the data by default.
+        print'3'
 
         #Decode the image and annotation raw content
         image = tf.read_file(input_queue[0])
+        print'4'
         image = tf.image.decode_image(image, channels=3)
+        print'5'
         annotation = tf.read_file(input_queue[1])
+        print'6'
         annotation = tf.image.decode_image(annotation)
+        print'7'
 
         #preprocess and batch up the image and annotation
         preprocessed_image, preprocessed_annotation = preprocess(image, annotation, image_height, image_width)
+        print'8'
         images, annotations = tf.train.batch([preprocessed_image, preprocessed_annotation], batch_size=batch_size, allow_smaller_final_batch=True)
+        print'9'
 
         #Create the model inference
         with slim.arg_scope(ENet_arg_scope(weight_decay=weight_decay)):
@@ -163,14 +172,19 @@ def run():
 
         #perform one-hot-encoding on the ground truth annotation to get same shape as the logits
         annotations = tf.reshape(annotations, shape=[batch_size, image_height, image_width])
+        print'10'
         annotations_ohe = tf.one_hot(annotations, num_classes, axis=-1)
+        print'11'
 
         #Actually compute the loss
         loss = weighted_cross_entropy(logits=logits, onehot_labels=annotations_ohe, class_weights=class_weights)
+        print'12'
         total_loss = tf.losses.get_total_loss()
+        print'13'
 
         #Create the global step for monitoring the learning_rate and training.
         global_step = get_or_create_global_step()
+        print'14'
 
         #Define your exponentially decaying learning rate
         lr = tf.train.exponential_decay(
@@ -179,18 +193,25 @@ def run():
             decay_steps = decay_steps,
             decay_rate = learning_rate_decay_factor,
             staircase = True)
+        print'15'
 
         #Now we can define the optimizer that takes on the learning rate
         optimizer = tf.train.AdamOptimizer(learning_rate=lr, epsilon=epsilon)
+        print'16'
 
         #Create the train_op.
         train_op = slim.learning.create_train_op(total_loss, optimizer)
+        print'17'
 
         #State the metrics that you want to predict. We get a predictions that is not one_hot_encoded.
         predictions = tf.argmax(probabilities, -1)
+        print'18'
         accuracy, accuracy_update = tf.contrib.metrics.streaming_accuracy(predictions, annotations)
+        print'19'
         mean_IOU, mean_IOU_update = tf.contrib.metrics.streaming_mean_iou(predictions=predictions, labels=annotations, num_classes=num_classes)
+        print'20'
         metrics_op = tf.group(accuracy_update, mean_IOU_update)
+        print'21'
 
         #Now we need to create a training step function that runs both the train_op, metrics_op and updates the global_step concurrently.
         def train_step(sess, train_op, global_step, metrics_op):
@@ -210,18 +231,27 @@ def run():
         #================VALIDATION BRANCH========================
         #Load the files into one input queue
         images_val = tf.convert_to_tensor(image_val_files)
+        print'22'
         annotations_val = tf.convert_to_tensor(annotation_val_files)
+        print'23'
         input_queue_val = tf.train.slice_input_producer([images_val, annotations_val])
+        print'24'
 
         #Decode the image and annotation raw content
         image_val = tf.read_file(input_queue_val[0])
+        print'25'
         image_val = tf.image.decode_jpeg(image_val, channels=3)
+        print'26'
         annotation_val = tf.read_file(input_queue_val[1])
+        print'27'
         annotation_val = tf.image.decode_png(annotation_val)
+        print'28'
 
         #preprocess and batch up the image and annotation
         preprocessed_image_val, preprocessed_annotation_val = preprocess(image_val, annotation_val, image_height, image_width)
+        print'29'
         images_val, annotations_val = tf.train.batch([preprocessed_image_val, preprocessed_annotation_val], batch_size=eval_batch_size, allow_smaller_final_batch=True)
+        print'30'
 
         with slim.arg_scope(ENet_arg_scope(weight_decay=weight_decay)):
             logits_val, probabilities_val = ENet(images_val,
@@ -232,22 +262,32 @@ def run():
                                                  num_initial_blocks=num_initial_blocks,
                                                  stage_two_repeat=stage_two_repeat,
                                                  skip_connections=skip_connections)
-
+        print'31'
         #perform one-hot-encoding on the ground truth annotation to get same shape as the logits
         annotations_val = tf.reshape(annotations_val, shape=[eval_batch_size, image_height, image_width])
+        print'32'
         annotations_ohe_val = tf.one_hot(annotations_val, num_classes, axis=-1)
+        print'33'
 
         #State the metrics that you want to predict. We get a predictions that is not one_hot_encoded. ----> Should we use OHE instead?
         predictions_val = tf.argmax(probabilities_val, -1)
+        print'34'
         accuracy_val, accuracy_val_update = tf.contrib.metrics.streaming_accuracy(predictions_val, annotations_val)
+        print'35'
         mean_IOU_val, mean_IOU_val_update = tf.contrib.metrics.streaming_mean_iou(predictions=predictions_val, labels=annotations_val, num_classes=num_classes)
+        print'36'
         metrics_op_val = tf.group(accuracy_val_update, mean_IOU_val_update)
+        print'37'
 
         #Create an output for showing the segmentation output of validation images
         segmentation_output_val = tf.cast(predictions_val, dtype=tf.float32)
+        print'38'
         segmentation_output_val = tf.reshape(segmentation_output_val, shape=[-1, image_height, image_width, 1])
+        print'39'
         segmentation_ground_truth_val = tf.cast(annotations_val, dtype=tf.float32)
+        print'40'
         segmentation_ground_truth_val = tf.reshape(segmentation_ground_truth_val, shape=[-1, image_height, image_width, 1])
+        print'41'
 
         def eval_step(sess, metrics_op):
             '''
@@ -266,18 +306,29 @@ def run():
 
         #Now finally create all the summaries you need to monitor and group them into one summary op.
         tf.summary.scalar('Monitor/Total_Loss', total_loss)
+        print'42'
         tf.summary.scalar('Monitor/validation_accuracy', accuracy_val)
+        print'43'
         tf.summary.scalar('Monitor/training_accuracy', accuracy)
+        print'44'
         tf.summary.scalar('Monitor/validation_mean_IOU', mean_IOU_val)
+        print'45'
         tf.summary.scalar('Monitor/training_mean_IOU', mean_IOU)
+        print'46'
         tf.summary.scalar('Monitor/learning_rate', lr)
+        print'47'
         tf.summary.image('Images/Validation_original_image', images_val, max_outputs=1)
+        print'48'
         tf.summary.image('Images/Validation_segmentation_output', segmentation_output_val, max_outputs=1)
+        print'49'
         tf.summary.image('Images/Validation_segmentation_ground_truth', segmentation_ground_truth_val, max_outputs=1)
+        print'50'
         my_summary_op = tf.summary.merge_all()
+        print'51'
 
         #Define your supervisor for running a managed session. Do not run the summary_op automatically or else it will consume too much memory
         sv = tf.train.Supervisor(logdir=logdir, summary_op=None, init_fn=None)
+        print'52'
 
         # Run the managed session
         with sv.managed_session() as sess:
