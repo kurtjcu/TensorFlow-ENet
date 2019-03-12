@@ -492,6 +492,7 @@ def ENet(inputs,
 #
 #   TODO: Look at changing the L2 to normal weight decay as per "DECOUPLED WEIGHT DECAY REGULARIZATION"
 #   TODO: Look at scheduled learning rate multiplier
+#   Question: this has been done in train_enet.py this is regularisation not weight decay????
 #
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 

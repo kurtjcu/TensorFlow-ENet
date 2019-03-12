@@ -17,7 +17,7 @@
 # INFO:tensorflow:Saving the images now...
 
 
-python train_enet.py --weighting="MFB" --num_epochs=300 --logdir="./log/train_original_MFB" --batch_size=8
+#python train_enet.py --weighting="MFB" --num_epochs=300 --logdir="./log/train_original_MFB" --batch_size=8
 
 # INFO:tensorflow:Final Training Accuracy: 0.894851
 # INFO:tensorflow:Final Training Mean IOU: 0.631599
@@ -25,3 +25,16 @@ python train_enet.py --weighting="MFB" --num_epochs=300 --logdir="./log/train_or
 # INFO:tensorflow:Final Validation Mean IOU: 0.537522
 # INFO:tensorflow:Finished training! Saving model to disk now.
 # INFO:tensorflow:Saving the images now...
+
+
+
+#python train_enet.py --weighting="MFB" --num_epochs=300 --logdir="./log/train_original_MFB-ADAMW" --batch_size=8 --optimizer_type="adamw"
+
+# INFO:tensorflow:Final Loss: 0.0146053
+# INFO:tensorflow:Final Training Accuracy: 0.807911
+# INFO:tensorflow:Final Training Mean IOU: 0.463249
+# INFO:tensorflow:Final Validation Accuracy: 0.796311
+# INFO:tensorflow:Final Validation Mean IOU: 0.464731
+# INFO:tensorflow:Finished training! Saving model to disk now.
+
+python train_enet.py --weighting="MFB" --num_epochs=1 --logdir="./log/train_original_MFB-ADAMW-30Epoch" --batch_size=10 --optimizer_type="adamw"

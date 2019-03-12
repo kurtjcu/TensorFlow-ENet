@@ -1,12 +1,15 @@
 import tensorflow as tf
 from tensorflow.contrib.framework.python.ops.variables import get_or_create_global_step
 from tensorflow.python.platform import tf_logging as logging
+#import tensorflow.contrib.opt.python.training.weight_decay_optimizers
 from enet import ENet, ENet_arg_scope
 from preprocessing import preprocess
 from get_class_weights import ENet_weighing, median_frequency_balancing
 import os
 import time
 import numpy as np
+import matplotlib
+matplotlib.use('Agg')   #so matplotlib works without xserver(for server without gui)
 import matplotlib.pyplot as plt
 slim = tf.contrib.slim
 
@@ -31,7 +34,7 @@ flags.DEFINE_float('weight_decay', 2e-4, "The weight decay for ENet convolution 
 flags.DEFINE_float('learning_rate_decay_factor', 1e-1, 'The learning rate decay factor.')
 flags.DEFINE_float('initial_learning_rate', 5e-4, 'The initial learning rate for your training.')
 flags.DEFINE_string('weighting', "MFB", 'Choice of Median Frequency Balancing or the custom ENet class weights.')
-flags.DEFINE_string('optimiser')
+flags.DEFINE_string('optimizer_type', "adam",'use adam or adamw ')
 
 #Architectural changes
 flags.DEFINE_integer('num_initial_blocks', 1, 'The number of initial blocks to use in ENet.')
@@ -132,11 +135,13 @@ def weighted_cross_entropy(onehot_labels, logits, class_weights):
     return loss
 
 def run():
+    
     with tf.Graph().as_default() as graph:
         tf.logging.set_verbosity(tf.logging.INFO)
 
         #===================TRAINING BRANCH=======================
         #Load the files into one input queue
+        
         images = tf.convert_to_tensor(image_files)
         print'1'
         annotations = tf.convert_to_tensor(annotation_files)
@@ -194,10 +199,25 @@ def run():
             decay_steps = decay_steps,
             decay_rate = learning_rate_decay_factor,
             staircase = True)
+
+
         print'15'
 
+    
         #Now we can define the optimizer that takes on the learning rate
-        optimizer = tf.train.AdamOptimizer(learning_rate=lr, epsilon=epsilon)
+        #optimizer = tf.train.AdamOptimizer(learning_rate=lr, epsilon=epsilon)
+        if(FLAGS.optimizer_type == "adam"):
+            print'using adam'
+            optimizer = tf.train.AdamOptimizer(learning_rate=lr, epsilon=epsilon)
+        elif(FLAGS.optimizer_type == "adamw"):
+            print'using adamw'
+            # myOptimizer = tf.contrib.opt.extend_with_decoupled_weight_decay(tf.train.AdamOptimizer, weight_decay=weight_decay)
+            # optimizer = myOptimizer
+            MyAdamW = tf.contrib.opt.extend_with_decoupled_weight_decay(tf.train.AdamOptimizer)
+            # Create a MyAdamW object
+            optimizer = MyAdamW(weight_decay=0.001, learning_rate=0.001)
+
+
         print'16'
 
         #Create the train_op.
