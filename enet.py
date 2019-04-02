@@ -222,7 +222,7 @@ def bottleneck(inputs,
             #Final projection with 1x1 kernel
             net = slim.conv2d(net, output_depth, [1,1], scope=scope+'_conv3')
             net = slim.batch_norm(net, is_training=is_training, scope=scope+'_batch_norm3')
-            net = prelu(net, scope=scope+'_prelu3')
+            # net = prelu(net, scope=scope+'_prelu3')
 
             #Regularizer
             net = spatial_dropout(net, p=regularizer_prob, seed=seed, scope=scope+'_spatial_dropout')
@@ -257,7 +257,7 @@ def bottleneck(inputs,
             #Final projection with 1x1 kernel (Expansion)
             net = slim.conv2d(net, output_depth, [1,1], scope=scope+'_conv3')
             net = slim.batch_norm(net, is_training=is_training, scope=scope+'_batch_norm3')
-            net = prelu(net, scope=scope+'_prelu3')
+            # net = prelu(net, scope=scope+'_prelu3')
 
             #Regularizer
             net = spatial_dropout(net, p=regularizer_prob, seed=seed, scope=scope+'_spatial_dropout')
@@ -289,7 +289,7 @@ def bottleneck(inputs,
             #Final projection with 1x1 kernel
             net = slim.conv2d(net, output_depth, [1,1], scope=scope+'_conv3')
             net = slim.batch_norm(net, is_training=is_training, scope=scope+'_batch_norm3')
-            net = prelu(net, scope=scope+'_prelu3')
+            # net = prelu(net, scope=scope+'_prelu3')
 
             #Regularizer
             net = spatial_dropout(net, p=regularizer_prob, seed=seed, scope=scope+'_spatial_dropout')
@@ -341,7 +341,7 @@ def bottleneck(inputs,
             #Final projection with 1x1 kernel
             net = slim.conv2d(net, output_depth, [1,1], scope=scope+'_conv3')
             net = slim.batch_norm(net, is_training=is_training, scope=scope+'_batch_norm4')
-            net = prelu(net, scope=scope+'_prelu3')
+            # net = prelu(net, scope=scope+'_prelu3')
 
             #Regularizer
             net = spatial_dropout(net, p=regularizer_prob, seed=seed, scope=scope+'_spatial_dropout')
@@ -371,7 +371,7 @@ def bottleneck(inputs,
         #Final projection with 1x1 kernel
         net = slim.conv2d(net, output_depth, [1,1], scope=scope+'_conv3')
         net = slim.batch_norm(net, is_training=is_training, scope=scope+'_batch_norm3')
-        net = prelu(net, scope=scope+'_prelu3')
+        # net = prelu(net, scope=scope+'_prelu3')
 
         #Regularizer
         net = spatial_dropout(net, p=regularizer_prob, seed=seed, scope=scope+'_spatial_dropout')
@@ -492,7 +492,6 @@ def ENet(inputs,
 #
 #   TODO: Look at changing the L2 to normal weight decay as per "DECOUPLED WEIGHT DECAY REGULARIZATION"
 #   TODO: Look at scheduled learning rate multiplier
-#   Question: this has been done in train_enet.py this is regularisation not weight decay????
 #
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 

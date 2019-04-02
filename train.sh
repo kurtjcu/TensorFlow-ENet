@@ -5,36 +5,56 @@
 # python train_enet.py --weighting="ENET" --num_epochs=300 --logdir="./log/train_original_ENet"
 
 
-# python train_enet.py --weighting="ENET" --num_epochs=300 --logdir="./log/train_original_ENet" --batch_size=9
+#python train_enet.py --weighting="ENET" --num_epochs=300 --logdir="./log/train_original_ENet" --batch_size=10
 
-# INFO:tensorflow:global step 12000: loss: 2.7022 (0.45 sec/step)    Current Streaming Accuracy: 0.8580    Current Mean IOU: 0.5245
-# INFO:tensorflow:Final Loss: 2.7022
-# INFO:tensorflow:Final Training Accuracy: 0.857984
-# INFO:tensorflow:Final Training Mean IOU: 0.524496
-# INFO:tensorflow:Final Validation Accuracy: 0.830779
-# INFO:tensorflow:Final Validation Mean IOU: 0.447612
-# INFO:tensorflow:Finished training! Saving model to disk now.
-# INFO:tensorflow:Saving the images now...
+# INFO:tensorflow:Final Loss: 3.48885
+# INFO:tensorflow:Final Training Accuracy: 0.856374
+# INFO:tensorflow:Final Training Mean IOU: 0.518484
+# INFO:tensorflow:Final Validation Accuracy: 0.829732
+# INFO:tensorflow:Final Validation Mean IOU: 0.44978
 
 
-#python train_enet.py --weighting="MFB" --num_epochs=300 --logdir="./log/train_original_MFB" --batch_size=8
 
-# INFO:tensorflow:Final Training Accuracy: 0.894851
-# INFO:tensorflow:Final Training Mean IOU: 0.631599
-# INFO:tensorflow:Final Validation Accuracy: 0.874859
-# INFO:tensorflow:Final Validation Mean IOU: 0.537522
-# INFO:tensorflow:Finished training! Saving model to disk now.
-# INFO:tensorflow:Saving the images now...
+#python train_enet.py --weighting="MFB" --num_epochs=300 --logdir="./log/train_original_MFB" --batch_size=10
+
+# INFO:tensorflow:Final Loss: 0.00733908
+# INFO:tensorflow:Final Training Accuracy: 0.842647
+# INFO:tensorflow:Final Training Mean IOU: 0.521835
+# INFO:tensorflow:Final Validation Accuracy: 0.82084
+# INFO:tensorflow:Final Validation Mean IOU: 0.474012
+
 
 
 
 #python train_enet.py --weighting="MFB" --num_epochs=300 --logdir="./log/train_original_MFB-ADAMW" --batch_size=8 --optimizer_type="adamw"
 
-# INFO:tensorflow:Final Loss: 0.0146053
-# INFO:tensorflow:Final Training Accuracy: 0.807911
-# INFO:tensorflow:Final Training Mean IOU: 0.463249
-# INFO:tensorflow:Final Validation Accuracy: 0.796311
-# INFO:tensorflow:Final Validation Mean IOU: 0.464731
-# INFO:tensorflow:Finished training! Saving model to disk now.
+# INFO:tensorflow:Final Loss: 0.0200352
+# INFO:tensorflow:Final Training Precision: 0.986666
+# INFO:tensorflow:Final Training Accuracy: 0.84743
+# INFO:tensorflow:Final Training Mean IOU: 0.529338
+# INFO:tensorflow:Final Validation Precision: 0.997549
+# INFO:tensorflow:Final Validation Accuracy: 0.8244
+# INFO:tensorflow:Final Validation Mean IOU: 0.48248
 
-python train_enet.py --weighting="MFB" --num_epochs=1 --logdir="./log/train_original_MFB-ADAMW-30Epoch" --batch_size=10 --optimizer_type="adamw"
+#python train_enet.py --weighting="ENET" --num_epochs=300 --logdir="./log/train_original_ENET-ADAMW-CYC-propper-M2.5e-3-L6.2e-4" --batch_size=8 --optimizer_type="adamw" --learning_rate_type="cyclic"
+
+
+
+#check adamw against original weighting
+#python train_enet.py --weighting="ENET" --num_epochs=300 --logdir="./log/train_original_ENET-ADAMW" --batch_size=8 --optimizer_type="adamw"
+##### Note #####
+# loss rate went back up is this overfitting?
+# INFO:tensorflow:Final Loss: 7.08987
+# INFO:tensorflow:Final Training Precision: 0.987879
+# INFO:tensorflow:Final Training Accuracy: 0.870615
+# INFO:tensorflow:Final Training Mean IOU: 0.560335
+# INFO:tensorflow:Final Validation Precision: 0.997521
+# INFO:tensorflow:Final Validation Accuracy: 0.849578
+# INFO:tensorflow:Final Validation Mean IOU: 0.484539
+
+
+
+
+python train_enet.py --weighting="ENET" --num_epochs=300 --logdir="./log/train_original_ENET-ADAMW-norelu-on-last" --batch_size=8 --optimizer_type="adamw"
+
+#python train_enet.py --weighting="ENET" --num_epochs=300 --logdir="./log/train_original_ENET-ADAMW-CYC-propper-M2.5e-3-L6.2e-4" --batch_size=8 --optimizer_type="adamw" --learning_rate_type="cyclic"

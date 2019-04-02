@@ -1,5 +1,6 @@
 import tensorflow as tf
-from tensorflow.contrib.framework.python.ops.variables import get_or_create_global_step
+#from tensorflow.contrib.framework.python.ops.variables import get_or_create_global_step
+from tensorflow.train import get_or_create_global_step
 from tensorflow.python.platform import tf_logging as logging
 #import tensorflow.contrib.opt.python.training.weight_decay_optimizers
 from enet import ENet, ENet_arg_scope
@@ -12,6 +13,15 @@ import matplotlib
 matplotlib.use('Agg')   #so matplotlib works without xserver(for server without gui)
 import matplotlib.pyplot as plt
 slim = tf.contrib.slim
+
+from tensorflow.python.eager import context
+from tensorflow.python.framework import constant_op
+from tensorflow.python.framework import dtypes
+from tensorflow.python.framework import ops
+from tensorflow.python.ops import control_flow_ops
+from tensorflow.python.ops import math_ops
+from tensorflow.python.ops import random_ops
+from tensorflow.python.util.tf_export import tf_export
 
 #==============INPUT ARGUMENTS==================
 flags = tf.app.flags
@@ -33,8 +43,10 @@ flags.DEFINE_integer('num_epochs_before_decay', 100, 'The number of epochs befor
 flags.DEFINE_float('weight_decay', 2e-4, "The weight decay for ENet convolution layers.")
 flags.DEFINE_float('learning_rate_decay_factor', 1e-1, 'The learning rate decay factor.')
 flags.DEFINE_float('initial_learning_rate', 5e-4, 'The initial learning rate for your training.')
+flags.DEFINE_float('max_learning_rate', 0.1, 'The max learning rate for your training. (cyclical)')
 flags.DEFINE_string('weighting', "MFB", 'Choice of Median Frequency Balancing or the custom ENet class weights.')
 flags.DEFINE_string('optimizer_type', "adam",'use adam or adamw ')
+flags.DEFINE_string('learning_rate_type', "exponential",'use exponential or cyclic for learning rate ')
 
 #Architectural changes
 flags.DEFINE_integer('num_initial_blocks', 1, 'The number of initial blocks to use in ENet.')
@@ -134,6 +146,53 @@ def weighted_cross_entropy(onehot_labels, logits, class_weights):
 
     return loss
 
+def cyclic_learning_rate(global_step,
+                         learning_rate=0.01,
+                         max_lr=0.1,
+                         step_size=20.,
+                         gamma=0.99994,
+                         mode='triangular',
+                         name=None):
+
+    if global_step is None:
+        raise ValueError("global_step is required for cyclic_learning_rate.")
+
+    with ops.name_scope(name, "CyclicLearningRate",
+                      [learning_rate, global_step]) as name:
+        learning_rate = ops.convert_to_tensor(learning_rate, name="learning_rate")
+        dtype = learning_rate.dtype
+        global_step = math_ops.cast(global_step, dtype)
+        step_size = math_ops.cast(step_size, dtype)
+
+        def cyclic_lr():
+            """Helper to recompute learning rate; most helpful in eager-mode."""
+            # computing: cycle = floor( 1 + global_step / ( 2 * step_size ) )
+            double_step = math_ops.multiply(2., step_size)
+            global_div_double_step = math_ops.divide(global_step, double_step)
+            cycle = math_ops.floor(math_ops.add(1., global_div_double_step))
+
+            double_cycle = math_ops.multiply(2., cycle)
+            global_div_step = math_ops.divide(global_step, step_size)
+            tmp = math_ops.subtract(global_div_step, double_cycle)
+            x = math_ops.abs(math_ops.add(1., tmp))
+
+            a1 = math_ops.maximum(0., math_ops.subtract(1., x))
+            a2 = math_ops.subtract(max_lr, learning_rate)
+            clr = math_ops.multiply(a1, a2)
+
+            if mode == 'triangular2':
+                clr = math_ops.divide(clr, math_ops.cast(math_ops.pow(2, math_ops.cast(
+                    cycle-1, tf.int32)), tf.float32))
+            if mode == 'exp_range':
+                clr = math_ops.multiply(math_ops.pow(gamma, global_step), clr)
+
+            return math_ops.add(clr, learning_rate, name=name)
+
+        if not context.executing_eagerly():
+            cyclic_lr = cyclic_lr()
+
+        return cyclic_lr
+
 def run():
     
     with tf.Graph().as_default() as graph:
@@ -193,12 +252,30 @@ def run():
         print'14'
 
         #Define your exponentially decaying learning rate
-        lr = tf.train.exponential_decay(
-            learning_rate = initial_learning_rate,
-            global_step = global_step,
-            decay_steps = decay_steps,
-            decay_rate = learning_rate_decay_factor,
-            staircase = True)
+
+        #############################################################
+        #############################################################
+        #############################################################
+        #              LEarning rate...
+
+        if(FLAGS.learning_rate_type == "exponential"):
+            print'learning rate is exp'
+            lr = tf.train.exponential_decay(
+                learning_rate = initial_learning_rate,
+                global_step = global_step,
+                decay_steps = decay_steps,
+                decay_rate = learning_rate_decay_factor,
+                staircase = True)
+        elif(FLAGS.learning_rate_type == "cyclic"):
+            print'learning rate is cyclic'
+            lr = cyclic_learning_rate(
+                learning_rate = 6.2e-4, #initial_learning_rate,  #0.01
+                global_step = global_step,
+                max_lr= 2.5e-3, #max_learning_rate , #0.1
+                step_size= num_steps_per_epoch,  #2-8 x training iterations in epoch.
+                gamma=0.99994,
+                mode='triangular',
+                name=None)
 
 
         print'15'
@@ -215,7 +292,7 @@ def run():
             # optimizer = myOptimizer
             MyAdamW = tf.contrib.opt.extend_with_decoupled_weight_decay(tf.train.AdamOptimizer)
             # Create a MyAdamW object
-            optimizer = MyAdamW(weight_decay=0.001, learning_rate=0.001)
+            optimizer = MyAdamW(weight_decay=weight_decay, learning_rate=lr)    #weight_decay=0.001, learning_rate=0.001
 
 
         print'16'
@@ -226,12 +303,11 @@ def run():
 
         #State the metrics that you want to predict. We get a predictions that is not one_hot_encoded.
         predictions = tf.argmax(probabilities, -1)
-        print'18'
-        accuracy, accuracy_update = tf.contrib.metrics.streaming_accuracy(predictions, annotations)
-        print'19'
-        mean_IOU, mean_IOU_update = tf.contrib.metrics.streaming_mean_iou(predictions=predictions, labels=annotations, num_classes=num_classes)
-        print'20'
-        metrics_op = tf.group(accuracy_update, mean_IOU_update)
+        precision, precision_update = tf.metrics.precision( annotations, predictions)
+        accuracy, accuracy_update = tf.metrics.accuracy( annotations, predictions)
+        mean_IOU, mean_IOU_update = tf.metrics.mean_iou(predictions=predictions, labels=annotations, num_classes=num_classes)
+
+        metrics_op = tf.group(accuracy_update, mean_IOU_update, precision_update)
         print'21'
 
         #Now we need to create a training step function that runs both the train_op, metrics_op and updates the global_step concurrently.
@@ -241,13 +317,13 @@ def run():
             '''
             #Check the time for each sess run
             start_time = time.time()
-            total_loss, global_step_count, accuracy_val, mean_IOU_val, _ = sess.run([train_op, global_step, accuracy, mean_IOU, metrics_op])
+            total_loss, global_step_count, accuracy_val, mean_IOU_val, precision_val, _ = sess.run([train_op, global_step, accuracy, mean_IOU, precision, metrics_op])
             time_elapsed = time.time() - start_time
 
             #Run the logging to show some results
-            logging.info('global step %s: loss: %.4f (%.2f sec/step)    Current Streaming Accuracy: %.4f    Current Mean IOU: %.4f', global_step_count, total_loss, time_elapsed, accuracy_val, mean_IOU_val)
+            logging.info('global step %s: loss: %.4f (%.2f sec/step)    Current Streaming Accuracy: %.4f    Current Mean IOU: %.4f    Current Precision: %.4f', global_step_count, total_loss, time_elapsed, accuracy_val, mean_IOU_val, precision_val)
 
-            return total_loss, accuracy_val, mean_IOU_val
+            return total_loss, accuracy_val, mean_IOU_val, precision_val
 
         #================VALIDATION BRANCH========================
         #Load the files into one input queue
@@ -292,64 +368,50 @@ def run():
 
         #State the metrics that you want to predict. We get a predictions that is not one_hot_encoded. ----> Should we use OHE instead?
         predictions_val = tf.argmax(probabilities_val, -1)
-        print'34'
-        accuracy_val, accuracy_val_update = tf.contrib.metrics.streaming_accuracy(predictions_val, annotations_val)
-        print'35'
-        mean_IOU_val, mean_IOU_val_update = tf.contrib.metrics.streaming_mean_iou(predictions=predictions_val, labels=annotations_val, num_classes=num_classes)
-        print'36'
-        metrics_op_val = tf.group(accuracy_val_update, mean_IOU_val_update)
-        print'37'
+        precision_val, precision_val_update = tf.metrics.precision(annotations_val, predictions_val)
+        accuracy_val, accuracy_val_update = tf.metrics.accuracy( annotations_val, predictions_val)
+        mean_IOU_val, mean_IOU_val_update = tf.metrics.mean_iou(predictions=predictions_val, labels=annotations_val, num_classes=num_classes)
+        metrics_op_val = tf.group(accuracy_val_update, mean_IOU_val_update, precision_val_update)
 
         #Create an output for showing the segmentation output of validation images
         segmentation_output_val = tf.cast(predictions_val, dtype=tf.float32)
-        print'38'
         segmentation_output_val = tf.reshape(segmentation_output_val, shape=[-1, image_height, image_width, 1])
-        print'39'
         segmentation_ground_truth_val = tf.cast(annotations_val, dtype=tf.float32)
-        print'40'
         segmentation_ground_truth_val = tf.reshape(segmentation_ground_truth_val, shape=[-1, image_height, image_width, 1])
-        print'41'
 
         def eval_step(sess, metrics_op):
             '''
             Simply takes in a session, runs the metrics op and some logging information.
             '''
             start_time = time.time()
-            _, accuracy_value, mean_IOU_value = sess.run([metrics_op, accuracy_val, mean_IOU_val])
+            _, accuracy_value, mean_IOU_value, precision_value = sess.run([metrics_op, accuracy_val, mean_IOU_val, precision_val])
             time_elapsed = time.time() - start_time
 
             #Log some information
-            logging.info('---VALIDATION--- Validation Accuracy: %.4f    Validation Mean IOU: %.4f    (%.2f sec/step)', accuracy_value, mean_IOU_value, time_elapsed)
+            logging.info('---VALIDATION--- Validation Accuracy: %.4f    Validation Mean IOU: %.4f    precision: (%.4f)   (%.2f sec/step)', accuracy_value, mean_IOU_value, precision_value, time_elapsed)
 
-            return accuracy_value, mean_IOU_value
+            return accuracy_value, mean_IOU_value, precision_value
 
         #=====================================================
 
         #Now finally create all the summaries you need to monitor and group them into one summary op.
         tf.summary.scalar('Monitor/Total_Loss', total_loss)
-        print'42'
+        tf.summary.scalar('Monitor/validation_precision', precision_val)
+        tf.summary.scalar('Monitor/training_precision', precision)
         tf.summary.scalar('Monitor/validation_accuracy', accuracy_val)
-        print'43'
         tf.summary.scalar('Monitor/training_accuracy', accuracy)
-        print'44'
         tf.summary.scalar('Monitor/validation_mean_IOU', mean_IOU_val)
-        print'45'
         tf.summary.scalar('Monitor/training_mean_IOU', mean_IOU)
-        print'46'
         tf.summary.scalar('Monitor/learning_rate', lr)
-        print'47'
         tf.summary.image('Images/Validation_original_image', images_val, max_outputs=1)
-        print'48'
         tf.summary.image('Images/Validation_segmentation_output', segmentation_output_val, max_outputs=1)
-        print'49'
         tf.summary.image('Images/Validation_segmentation_ground_truth', segmentation_ground_truth_val, max_outputs=1)
-        print'50'
         my_summary_op = tf.summary.merge_all()
         print'51'
 
         #Define your supervisor for running a managed session. Do not run the summary_op automatically or else it will consume too much memory
         sv = tf.train.Supervisor(logdir=logdir, summary_op=None, init_fn=None)
-        print'52'
+        print'created supervisor'
 
         # Run the managed session
         with sv.managed_session() as sess:
@@ -362,24 +424,26 @@ def run():
 
                 #Log the summaries every 10 steps or every end of epoch, which ever lower.
                 if step % min(num_steps_per_epoch, 10) == 0:
-                    loss, training_accuracy, training_mean_IOU = train_step(sess, train_op, sv.global_step, metrics_op=metrics_op)
+                    loss, training_accuracy, training_mean_IOU, training_precision = train_step(sess, train_op, sv.global_step, metrics_op=metrics_op)
 
                     #Check the validation data only at every third of an epoch
                     if step % (num_steps_per_epoch / 3) == 0:
                         for i in xrange(len(image_val_files) / eval_batch_size):
-                            validation_accuracy, validation_mean_IOU = eval_step(sess, metrics_op_val)
+                            validation_accuracy, validation_mean_IOU, validation_precision = eval_step(sess, metrics_op_val)
 
                     summaries = sess.run(my_summary_op)
                     sv.summary_computed(sess, summaries)
                     
                 #If not, simply run the training step
                 else:
-                    loss, training_accuracy,training_mean_IOU = train_step(sess, train_op, sv.global_step, metrics_op=metrics_op)
+                    loss, training_accuracy, training_mean_IOU, training_precision = train_step(sess, train_op, sv.global_step, metrics_op=metrics_op)
 
             #We log the final training loss
             logging.info('Final Loss: %s', loss)
+            logging.info('Final Training Precision: %s', training_precision)
             logging.info('Final Training Accuracy: %s', training_accuracy)
             logging.info('Final Training Mean IOU: %s', training_mean_IOU)
+            logging.info('Final Validation Precision: %s', validation_precision)
             logging.info('Final Validation Accuracy: %s', validation_accuracy)
             logging.info('Final Validation Mean IOU: %s', validation_mean_IOU)
 
