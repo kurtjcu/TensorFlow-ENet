@@ -179,7 +179,7 @@ def run():
                 logging.info('Saving the images now...')
                 predictions_val, annotations_val = sess.run([predictions, annotations])
 
-                for i in xrange(10):
+                for i in range(10):
                     predicted_annotation = predictions_val[i]
                     annotation = annotations_val[i]
 
